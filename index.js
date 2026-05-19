@@ -29,6 +29,7 @@
         lastChatSignature: "",
         bubbleTimer: null,
         idleMoodTimer: null,
+        dragBubbleActive: false,
         affinity: 0,
         level: 1,
         statusTimer: null,
@@ -78,7 +79,7 @@
 
         actor.addEventListener("pointerdown", (evt) => {
             state.draggingPet = true;
-            showBubble('💦');
+            showDragBubble();
             const rect = actor.getBoundingClientRect();
             state.dragOffsetX = evt.clientX - rect.left;
             state.dragOffsetY = evt.clientY - rect.top;
@@ -101,14 +102,20 @@
         });
 
         window.addEventListener("pointerup", () => {
+            const hadPetDrag = state.draggingPet;
             if (state.draggingPet || state.draggingFab) save();
             state.draggingPet = false;
             state.draggingFab = false;
+            if (hadPetDrag && state.dragBubbleActive) {
+                state.dragBubbleActive = false;
+                showBubble(randomIdleMood());
+            }
         });
     }
 
     function showBubble(emoji) {
         if (!state.bubbleEl) return;
+        state.dragBubbleActive = false;
         state.bubbleEl.textContent = emoji;
         state.bubbleEl.hidden = false;
         if (state.bubbleTimer) window.clearTimeout(state.bubbleTimer);
@@ -117,16 +124,46 @@
         }, 4200);
     }
 
+    function showDragBubble() {
+        if (!state.bubbleEl) return;
+        state.dragBubbleActive = true;
+        if (state.bubbleTimer) window.clearTimeout(state.bubbleTimer);
+        state.bubbleEl.textContent = "💦";
+        state.bubbleEl.hidden = false;
+    }
+
     function gainAffinity(amount) {
         state.affinity += amount;
         const nextLevelNeed = state.level * 100;
         if (state.affinity >= nextLevelNeed) {
             state.affinity -= nextLevelNeed;
             state.level += 1;
-            showBubble("🎉");
+            showBubble("✨ 진화!");
+            playLevelUpEffect();
         }
         save();
         renderHud();
+    }
+
+    function playLevelUpEffect() {
+        if (!state.actor) return;
+        state.actor.classList.add("spt-levelup");
+        window.setTimeout(() => {
+            state.actor?.classList.remove("spt-levelup");
+        }, 1100);
+
+        for (let i = 0; i < 9; i++) {
+            const p = document.createElement("span");
+            p.className = "spt-spark";
+            const ang = (Math.PI * 2 * i) / 9;
+            const dist = 26 + Math.random() * 24;
+            p.style.setProperty("--dx", `${Math.cos(ang) * dist}px`);
+            p.style.setProperty("--dy", `${Math.sin(ang) * dist}px`);
+            p.style.left = `${state.size / 2}px`;
+            p.style.top = `${state.size / 2}px`;
+            state.actor.appendChild(p);
+            window.setTimeout(() => p.remove(), 900);
+        }
     }
 
     function moodFromText(text, role) {
