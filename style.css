@@ -4,6 +4,7 @@
     bottom: 16px;
     z-index: 99999;
     font-family: sans-serif;
+    touch-action: none;
 }
 
 #spt_min_pet_btn {
@@ -15,11 +16,12 @@
     color: #fff;
     font-weight: 700;
     cursor: pointer;
+    touch-action: none;
 }
 
 #spt_min_pet_panel {
     margin-top: 8px;
-    width: 220px;
+    width: 280px;
     padding: 10px;
     border-radius: 10px;
     border: 1px solid #333;
@@ -27,7 +29,60 @@
     color: #fff;
 }
 
-#spt_min_pet_toggle {
+#spt_min_pet_panel .spt-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+#spt_min_pet_panel .spt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-top: 8px;
+}
+
+#spt_min_pet_panel label {
+    width: 42px;
+    font-size: 12px;
+}
+
+#spt_min_pet_panel input[type="range"] {
+    flex: 1;
+}
+
+#spt_min_pet_panel input[type="number"] {
+    width: 68px;
+}
+
+#spt_pet_actor {
+    position: fixed;
+    left: 120px;
+    top: 120px;
+    width: 120px;
+    height: 120px;
+    cursor: grab;
+    user-select: none;
+    z-index: 99998;
+}
+
+#spt_pet_actor:active {
+    cursor: grabbing;
+}
+
+#spt_pet_actor img {
     width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+#spt_pet_actor_placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    border: 2px dashed #bbb;
+    color: #bbb;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
 }
