@@ -248,6 +248,7 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 8px;
+    touch-action: none;
 }
 
 #spt_pet_fab {
@@ -262,6 +263,7 @@
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+    touch-action: none;
 }
 
 .spt-pet-fab-dot {

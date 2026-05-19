@@ -34,6 +34,9 @@ let uiMounted = false;
 let mountIntervalId = null;
 let mountObserver = null;
 let floatingUiMounted = false;
+let fabDragging = false;
+let fabDragOffsetX = 0;
+let fabDragOffsetY = 0;
 
 function getSettingsHtml() {
     return `
@@ -448,6 +451,7 @@ function setupUiAutoMount() {
 
 function createFloatingUI() {
     if (floatingUiMounted || document.getElementById("spt_pet_fab")) return;
+    if (!document.body) return;
     const wrapper = document.createElement("div");
     wrapper.id = "spt_pet_fab_wrap";
     wrapper.innerHTML = `
@@ -490,6 +494,25 @@ function createFloatingUI() {
     const quickFileEl = document.getElementById("spt_pet_quick_file");
 
     fabEl?.addEventListener("click", () => panelEl?.classList.toggle("is-open"));
+    fabEl?.addEventListener("pointerdown", (evt) => {
+        const rect = wrapper.getBoundingClientRect();
+        fabDragging = true;
+        fabDragOffsetX = evt.clientX - rect.left;
+        fabDragOffsetY = evt.clientY - rect.top;
+        wrapper.setPointerCapture?.(evt.pointerId);
+    });
+    window.addEventListener("pointermove", (evt) => {
+        if (!fabDragging) return;
+        const x = clamp(evt.clientX - fabDragOffsetX, 0, Math.max(0, window.innerWidth - wrapper.offsetWidth));
+        const y = clamp(evt.clientY - fabDragOffsetY, 0, Math.max(0, window.innerHeight - wrapper.offsetHeight));
+        wrapper.style.left = `${x}px`;
+        wrapper.style.top = `${y}px`;
+        wrapper.style.right = "auto";
+        wrapper.style.bottom = "auto";
+    });
+    window.addEventListener("pointerup", () => {
+        fabDragging = false;
+    });
     quickRunEl?.addEventListener("click", () => {
         cfg().enabled = !cfg().enabled;
         refreshVisibility();
@@ -555,6 +578,7 @@ function createFloatingUI() {
 
 async function init() {
     ensureSettings();
+    createFloatingUI();
     await waitAndMountSettingsUI();
     setupUiAutoMount();
     createPetIfNeeded();
@@ -565,6 +589,16 @@ async function init() {
 init().catch((err) => {
     console.error(`[${EXT_NAME}] failed to initialize`, err);
 });
+
+window.addEventListener("DOMContentLoaded", () => {
+    createFloatingUI();
+});
+
+window.setInterval(() => {
+    if (!document.getElementById("spt_pet_fab")) {
+        createFloatingUI();
+    }
+}, 2000);
 
 window.addEventListener("beforeunload", () => {
     destroyPet();
