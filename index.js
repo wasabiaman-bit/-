@@ -28,6 +28,7 @@
         bubbleEl: null,
         lastChatSignature: "",
         bubbleTimer: null,
+        idleMoodTimer: null,
     };
 
     function clamp(v, min, max) {
@@ -112,15 +113,32 @@
     function moodFromText(text, role) {
         const t = (text || "").toLowerCase();
         if (!t) return role === "user" ? "🙂" : "😶";
-        if (/(ㅋㅋ|ㅎㅎ|haha|lol|좋아|행복|고마워|thanks|love|최고|재밌)/.test(t)) return role === "user" ? "😄" : "😊";
-        if (/(슬퍼|우울|sad|cry|힘들|아파|미안|sorry)/.test(t)) return role === "user" ? "🥺" : "😢";
-        if (/(화나|짜증|angry|hate|빡쳐|분노)/.test(t)) return role === "user" ? "😠" : "😾";
+        if (/(ㅋㅋ|ㅎㅎ|haha|lol|좋아|행복|고마워|thanks|love|최고|재밌|신나)/.test(t)) return role === "user" ? "😄" : "🥰";
+        if (/(슬퍼|우울|sad|cry|힘들|아파|미안|sorry|외로)/.test(t)) return role === "user" ? "🥺" : "😢";
+        if (/(화나|짜증|angry|hate|빡쳐|분노|열받)/.test(t)) return role === "user" ? "😠" : "😾";
         if (/(배고|먹|밥|치킨|라면|food|hungry)/.test(t)) return "😋";
-        if (/(놀라|헉|wow|omg|대박|진짜\?|what)/.test(t)) return role === "user" ? "😲" : "😮";
-        if (/(sleep|졸려|자자|굿나잇|피곤)/.test(t)) return "😪";
+        if (/(놀라|헉|wow|omg|대박|진짜\?|what|충격)/.test(t)) return role === "user" ? "😲" : "😮";
+        if (/(sleep|졸려|자자|굿나잇|피곤|졸음)/.test(t)) return "😪";
         if (/(고마|감사)/.test(t)) return "🙏";
-        if (/(싸우|전투|battle|fight)/.test(t)) return "⚡";
+        if (/(싸우|전투|battle|fight|결투)/.test(t)) return "⚡";
+        if (/(무서|공포|scary|horror)/.test(t)) return "😱";
+        if (/(궁금|왜|어째서|question|how|help)/.test(t)) return "🤔";
+        if (/(귀여|cute|사랑스러)/.test(t)) return "😍";
         return role === "user" ? "🙂" : "🐾";
+    }
+
+    function randomIdleMood() {
+        const pool = ["😴", "🥱", "🍖", "🍓", "💤", "🐾", "🎈", "😶", "😼", "✨", "🤤", "🫧"];
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function setupIdleMood() {
+        if (state.idleMoodTimer) return;
+        state.idleMoodTimer = window.setInterval(() => {
+            if (!state.enabled) return;
+            if (Math.random() < 0.55) return;
+            showBubble(randomIdleMood());
+        }, 9000);
     }
 
     function inferRole(el) {
@@ -390,12 +408,14 @@
             applyPet();
             if (!state.rafId) tick();
             setupChatMoodObserver();
+            setupIdleMood();
         });
     } else {
         mount();
         applyPet();
         if (!state.rafId) tick();
         setupChatMoodObserver();
+        setupIdleMood();
     }
 
     setInterval(() => {
