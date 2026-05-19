@@ -10,12 +10,13 @@
 #spt_min_pet_btn {
     width: 72px;
     height: 72px;
-    border-radius: 999px;
-    border: 2px solid #111;
+    border-radius: 8px;
+    border: 3px solid #111;
     background:
-        radial-gradient(circle at center, #ffffff 0 9px, #111 9px 13px, transparent 13px),
-        linear-gradient(180deg, #e53935 0 48%, #f5f5f5 48% 56%, #111 56% 100%);
-    color: #ffffff;
+        radial-gradient(circle at 50% 50%, #ffffff 0 7px, #111 7px 12px, transparent 12px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0 2px, rgba(0,0,0,0.02) 2px 4px),
+        linear-gradient(180deg, #e53935 0 47%, #f5f5f5 47% 56%, #111 56% 100%);
+    image-rendering: pixelated;
     font-weight: 700;
     cursor: pointer;
     touch-action: none;
@@ -183,4 +184,22 @@
     display: grid;
     place-items: center;
     font-size: 12px;
+}
+
+#spt_pet_bubble {
+    position: absolute;
+    left: 50%;
+    top: -34px;
+    transform: translateX(-50%);
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 14px;
+    border: 2px solid #111;
+    background: #fff;
+    color: #111;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }

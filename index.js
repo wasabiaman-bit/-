@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
     const ROOT_ID = "spt_min_pet_root";
     const PET_ID = "spt_pet_actor";
     const KEY = "pokemon_pet_min_settings_v1";
@@ -25,6 +25,9 @@
         actor: null,
         actorImg: null,
         rafId: null,
+        bubbleEl: null,
+        lastChatSignature: "",
+        bubbleTimer: null,
     };
 
     function clamp(v, min, max) {
@@ -60,16 +63,19 @@
         if (state.actor) return;
         const actor = document.createElement("div");
         actor.id = PET_ID;
-        actor.innerHTML = `<img id="spt_pet_actor_img" alt="pet" draggable="false" /><div id="spt_pet_actor_placeholder">PET</div>`;
+        actor.innerHTML = `<img id="spt_pet_actor_img" alt="pet" draggable="false" /><div id="spt_pet_actor_placeholder">PET</div><div id="spt_pet_bubble" hidden>🙂</div>`;
         document.body.appendChild(actor);
         state.actor = actor;
         state.actorImg = actor.querySelector("#spt_pet_actor_img");
+        state.bubbleEl = actor.querySelector("#spt_pet_bubble");
+
         actor.addEventListener("pointerdown", (evt) => {
             state.draggingPet = true;
             const rect = actor.getBoundingClientRect();
             state.dragOffsetX = evt.clientX - rect.left;
             state.dragOffsetY = evt.clientY - rect.top;
         });
+
         window.addEventListener("pointermove", (evt) => {
             if (state.draggingPet) {
                 setPetPosition(evt.clientX - state.dragOffsetX, evt.clientY - state.dragOffsetY);
@@ -85,11 +91,83 @@
                 root.style.bottom = "auto";
             }
         });
+
         window.addEventListener("pointerup", () => {
             if (state.draggingPet || state.draggingFab) save();
             state.draggingPet = false;
             state.draggingFab = false;
         });
+    }
+
+    function showBubble(emoji) {
+        if (!state.bubbleEl) return;
+        state.bubbleEl.textContent = emoji;
+        state.bubbleEl.hidden = false;
+        if (state.bubbleTimer) window.clearTimeout(state.bubbleTimer);
+        state.bubbleTimer = window.setTimeout(() => {
+            if (state.bubbleEl) state.bubbleEl.hidden = true;
+        }, 2200);
+    }
+
+    function moodFromText(text, role) {
+        const t = (text || "").toLowerCase();
+        if (!t) return role === "user" ? "🙂" : "😶";
+        if (/(ㅋㅋ|ㅎㅎ|haha|lol|좋아|행복|고마워|thanks|love|최고|재밌)/.test(t)) return role === "user" ? "😄" : "😊";
+        if (/(슬퍼|우울|sad|cry|힘들|아파|미안|sorry)/.test(t)) return role === "user" ? "🥺" : "😢";
+        if (/(화나|짜증|angry|hate|빡쳐|분노)/.test(t)) return role === "user" ? "😠" : "😾";
+        if (/(배고|먹|밥|치킨|라면|food|hungry)/.test(t)) return "😋";
+        if (/(놀라|헉|wow|omg|대박|진짜\?|what)/.test(t)) return role === "user" ? "😲" : "😮";
+        if (/(sleep|졸려|자자|굿나잇|피곤)/.test(t)) return "😪";
+        if (/(고마|감사)/.test(t)) return "🙏";
+        if (/(싸우|전투|battle|fight)/.test(t)) return "⚡";
+        return role === "user" ? "🙂" : "🐾";
+    }
+
+    function inferRole(el) {
+        if (!el) return "unknown";
+        const cls = (el.className || "").toString().toLowerCase();
+        if (cls.includes("is_user") || cls.includes("user") || cls.includes("you")) return "user";
+        if (cls.includes("assistant") || cls.includes("ai") || cls.includes("char") || cls.includes("bot")) return "assistant";
+        const dataUser = el.getAttribute("data-is-user");
+        if (dataUser === "true" || dataUser === "1") return "user";
+        if (dataUser === "false" || dataUser === "0") return "assistant";
+        return "assistant";
+    }
+
+    function latestChatMessage() {
+        const selectors = [
+            "#chat .mes:last-child",
+            ".mes:last-child",
+            ".chat .message:last-child",
+            "#chat .message:last-child",
+        ];
+        for (const sel of selectors) {
+            const mesEl = document.querySelector(sel);
+            if (!mesEl) continue;
+            const textEl =
+                mesEl.querySelector(".mes_text") ||
+                mesEl.querySelector(".message_text") ||
+                mesEl.querySelector(".text");
+            const text = (textEl?.textContent || mesEl.textContent || "").trim();
+            if (!text) continue;
+            const role = inferRole(mesEl);
+            const signature = `${role}:${text.slice(0, 120)}`;
+            return { text, role, signature };
+        }
+        return null;
+    }
+
+    function setupChatMoodObserver() {
+        const run = () => {
+            const msg = latestChatMessage();
+            if (!msg) return;
+            if (msg.signature === state.lastChatSignature) return;
+            state.lastChatSignature = msg.signature;
+            showBubble(moodFromText(msg.text, msg.role));
+        };
+        const obs = new MutationObserver(run);
+        obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+        window.setInterval(run, 1500);
     }
 
     function setPetPosition(x, y) {
@@ -262,7 +340,7 @@
         const root = document.createElement("div");
         root.id = ROOT_ID;
         root.innerHTML = `
-            <button id="spt_min_pet_btn" type="button" title="Pokemon Pet">POKE</button>
+            <button id="spt_min_pet_btn" type="button" title="Pokemon Pet"></button>
             <div id="spt_min_pet_panel" hidden>
                 <div class="spt-title">Pokemon Pet</div>
                 <div class="spt-tabs">
@@ -311,11 +389,13 @@
             mount();
             applyPet();
             if (!state.rafId) tick();
+            setupChatMoodObserver();
         });
     } else {
         mount();
         applyPet();
         if (!state.rafId) tick();
+        setupChatMoodObserver();
     }
 
     setInterval(() => {
