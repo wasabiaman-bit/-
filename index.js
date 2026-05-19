@@ -141,6 +141,7 @@
         const sizePx = root.querySelector("#spt_min_pet_size_px");
         const speedRange = root.querySelector("#spt_min_pet_speed");
         const fileInput = root.querySelector("#spt_min_pet_file");
+        const fileName = root.querySelector("#spt_min_pet_file_name");
 
         const renderUi = () => {
             runBtn.textContent = state.enabled ? "Stop" : "Start";
@@ -148,6 +149,7 @@
             sizeRange.value = String(state.size);
             sizePx.value = String(state.size);
             speedRange.value = String(state.speed);
+            if (fileName) fileName.textContent = state.imageData ? "Image loaded" : "No image selected";
         };
 
         fab.addEventListener("click", () => {
@@ -209,6 +211,7 @@
             });
             state.imageData = dataUrl;
             applyPet();
+            if (fileName) fileName.textContent = file.name;
             save();
         });
 
@@ -237,8 +240,10 @@
                     <input id="spt_min_pet_speed" type="range" min="0.4" max="5" step="0.1" />
                 </div>
                 <div class="spt-row">
+                    <label for="spt_min_pet_file" class="spt-upload-btn">Choose GIF/PNG</label>
                     <input id="spt_min_pet_file" type="file" accept=".gif,.png,image/gif,image/png" />
                 </div>
+                <div id="spt_min_pet_file_name" class="spt-file-name">No image selected</div>
             </div>
         `;
         document.body.appendChild(root);
