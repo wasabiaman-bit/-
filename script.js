@@ -5,7 +5,6 @@
 // 3) User-provided GIF/PNG image (stored in extension settings)
 
 import { extension_settings, saveSettingsDebounced } from "../../../extensions.js";
-import { getContext, renderExtensionTemplateAsync } from "../../../script.js";
 
 const EXT_NAME = "pokemon-pet-extension";
 
@@ -31,6 +30,60 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let velocityX = 1;
 let velocityY = 1;
+let uiMounted = false;
+
+function getSettingsHtml() {
+    return `
+<div class="inline-drawer spt-pet-drawer" id="spt_pet_drawer">
+    <div class="inline-drawer-toggle inline-drawer-header spt-pet-drawer-head">
+        <b>Pokemon Pet Overlay</b>
+        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+        <div class="spt-pet-card">
+            <div class="spt-pet-topbar">
+                <span id="spt_pet_status_badge" class="spt-pet-status-badge">Stopped</span>
+                <span id="spt_pet_filename" class="spt-pet-filename">No image selected</span>
+            </div>
+            <div class="spt-pet-button-row">
+                <button id="spt_pet_toggle_run" class="menu_button spt-pet-btn-primary">Start</button>
+                <button id="spt_pet_toggle_auto" class="menu_button">Auto: ON</button>
+                <button id="spt_pet_reset_position" class="menu_button">Reset Position</button>
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_enabled">Enable pet</label>
+                <input id="spt_pet_enabled" type="checkbox" />
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_autopilot">Autonomous move</label>
+                <input id="spt_pet_autopilot" type="checkbox" />
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_size">Size</label>
+                <input id="spt_pet_size" type="range" min="48" max="280" step="1" />
+                <input id="spt_pet_size_px" class="text_pole spt-pet-px-input" type="number" min="48" max="280" step="1" />
+                <span id="spt_pet_size_value" class="spt-pet-value">120px</span>
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_speed">Speed</label>
+                <input id="spt_pet_speed" type="range" min="0.4" max="5" step="0.1" />
+                <span id="spt_pet_speed_value" class="spt-pet-value">1.6</span>
+            </div>
+            <div class="spt-pet-settings-row spt-pet-file-row">
+                <label for="spt_pet_file" class="menu_button spt-pet-upload-btn">Choose GIF/PNG</label>
+                <input id="spt_pet_file" type="file" accept=".gif,.png,image/gif,image/png" />
+            </div>
+            <div class="spt-pet-preview-wrap">
+                <div class="spt-pet-preview-title">Web Preview</div>
+                <div class="spt-pet-preview-box">
+                    <img id="spt_pet_preview_img" class="spt-pet-preview-img" alt="pet preview" />
+                    <div id="spt_pet_preview_placeholder" class="spt-pet-preview-placeholder">Upload GIF/PNG to preview</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`;
+}
 
 function ensureSettings() {
     if (!extension_settings[EXT_NAME]) {
@@ -333,16 +386,29 @@ function bindSettingsUI() {
 }
 
 async function mountSettingsUI() {
-    const context = getContext();
-    const html = await renderExtensionTemplateAsync(`third-party/${EXT_NAME}`, "settings");
-    context.settingsHtml = context.settingsHtml || "";
-    $("#extensions_settings2").append(html);
+    if (uiMounted || document.getElementById("spt_pet_drawer")) {
+        uiMounted = true;
+        return;
+    }
+    const host = document.querySelector("#extensions_settings2") || document.querySelector("#extensions_settings");
+    if (!host) return;
+    host.insertAdjacentHTML("beforeend", getSettingsHtml());
     bindSettingsUI();
+    uiMounted = true;
+}
+
+async function waitAndMountSettingsUI() {
+    for (let i = 0; i < 30; i++) {
+        await mountSettingsUI();
+        if (uiMounted) return;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    console.warn(`[${EXT_NAME}] settings host was not found.`);
 }
 
 async function init() {
     ensureSettings();
-    await mountSettingsUI();
+    await waitAndMountSettingsUI();
     createPetIfNeeded();
     refreshVisibility();
 }
