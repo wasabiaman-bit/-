@@ -1,0 +1,10 @@
+{
+  "name": "pokemon-pet-extension",
+  "display_name": "Pokemon Pet Overlay",
+  "version": "1.0.0",
+  "author": "community",
+  "description": "Floating pet overlay for SillyTavern home/chat with autonomous movement, drag support, and user GIF/PNG image upload.",
+  "js": "script.js",
+  "css": "style.css",
+  "homePage": "https://github.com/<YOUR_GITHUB>/<YOUR_REPO>"
+}
