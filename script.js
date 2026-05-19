@@ -31,6 +31,9 @@ let dragOffsetY = 0;
 let velocityX = 1;
 let velocityY = 1;
 let uiMounted = false;
+let mountIntervalId = null;
+let mountObserver = null;
+let floatingUiMounted = false;
 
 function getSettingsHtml() {
     return `
@@ -247,6 +250,12 @@ function updateUiState() {
     const badgeEl = document.getElementById("spt_pet_status_badge");
     const previewImgEl = document.getElementById("spt_pet_preview_img");
     const previewPlaceholderEl = document.getElementById("spt_pet_preview_placeholder");
+    const fabStatusEl = document.getElementById("spt_pet_fab_status");
+    const quickRunEl = document.getElementById("spt_pet_quick_run");
+    const quickAutoEl = document.getElementById("spt_pet_quick_auto");
+    const quickSizeEl = document.getElementById("spt_pet_quick_size");
+    const quickSizePxEl = document.getElementById("spt_pet_quick_size_px");
+    const quickSpeedEl = document.getElementById("spt_pet_quick_speed");
 
     if (!enabledEl || !autopilotEl || !sizeEl || !speedEl || !filenameEl) return;
 
@@ -277,6 +286,12 @@ function updateUiState() {
             previewPlaceholderEl.style.display = "block";
         }
     }
+    if (fabStatusEl) fabStatusEl.textContent = cfg().enabled ? "ON" : "OFF";
+    if (quickRunEl) quickRunEl.textContent = cfg().enabled ? "Stop" : "Start";
+    if (quickAutoEl) quickAutoEl.textContent = `Auto: ${cfg().autopilot ? "ON" : "OFF"}`;
+    if (quickSizeEl) quickSizeEl.value = String(cfg().size);
+    if (quickSizePxEl) quickSizePxEl.value = String(cfg().size);
+    if (quickSpeedEl) quickSpeedEl.value = String(cfg().speed);
 }
 
 function bindSettingsUI() {
@@ -395,6 +410,14 @@ async function mountSettingsUI() {
     host.insertAdjacentHTML("beforeend", getSettingsHtml());
     bindSettingsUI();
     uiMounted = true;
+    if (mountIntervalId) {
+        window.clearInterval(mountIntervalId);
+        mountIntervalId = null;
+    }
+    if (mountObserver) {
+        mountObserver.disconnect();
+        mountObserver = null;
+    }
 }
 
 async function waitAndMountSettingsUI() {
@@ -406,10 +429,136 @@ async function waitAndMountSettingsUI() {
     console.warn(`[${EXT_NAME}] settings host was not found.`);
 }
 
+function setupUiAutoMount() {
+    if (uiMounted) return;
+
+    mountIntervalId = window.setInterval(() => {
+        if (!uiMounted) {
+            mountSettingsUI().catch((err) => console.error(`[${EXT_NAME}] interval mount failed`, err));
+        }
+    }, 1500);
+
+    mountObserver = new MutationObserver(() => {
+        if (!uiMounted) {
+            mountSettingsUI().catch((err) => console.error(`[${EXT_NAME}] observer mount failed`, err));
+        }
+    });
+    mountObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function createFloatingUI() {
+    if (floatingUiMounted || document.getElementById("spt_pet_fab")) return;
+    const wrapper = document.createElement("div");
+    wrapper.id = "spt_pet_fab_wrap";
+    wrapper.innerHTML = `
+        <button id="spt_pet_fab" type="button" title="Pokemon Pet Controls">
+            <span class="spt-pet-fab-dot"></span>
+            <span id="spt_pet_fab_status">ON</span>
+        </button>
+        <div id="spt_pet_quick_panel" class="spt-pet-quick-panel">
+            <div class="spt-pet-quick-head">Pokemon Pet</div>
+            <div class="spt-pet-button-row">
+                <button id="spt_pet_quick_run" class="menu_button spt-pet-btn-primary">Start</button>
+                <button id="spt_pet_quick_auto" class="menu_button">Auto: ON</button>
+                <button id="spt_pet_quick_reset" class="menu_button">Reset</button>
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_quick_size">Size</label>
+                <input id="spt_pet_quick_size" type="range" min="48" max="280" step="1" />
+                <input id="spt_pet_quick_size_px" class="text_pole spt-pet-px-input" type="number" min="48" max="280" step="1" />
+            </div>
+            <div class="spt-pet-settings-row">
+                <label for="spt_pet_quick_speed">Speed</label>
+                <input id="spt_pet_quick_speed" type="range" min="0.4" max="5" step="0.1" />
+            </div>
+            <div class="spt-pet-settings-row spt-pet-file-row">
+                <label for="spt_pet_quick_file" class="menu_button spt-pet-upload-btn">Choose GIF/PNG</label>
+                <input id="spt_pet_quick_file" type="file" accept=".gif,.png,image/gif,image/png" />
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrapper);
+
+    const fabEl = document.getElementById("spt_pet_fab");
+    const panelEl = document.getElementById("spt_pet_quick_panel");
+    const quickRunEl = document.getElementById("spt_pet_quick_run");
+    const quickAutoEl = document.getElementById("spt_pet_quick_auto");
+    const quickResetEl = document.getElementById("spt_pet_quick_reset");
+    const quickSizeEl = document.getElementById("spt_pet_quick_size");
+    const quickSizePxEl = document.getElementById("spt_pet_quick_size_px");
+    const quickSpeedEl = document.getElementById("spt_pet_quick_speed");
+    const quickFileEl = document.getElementById("spt_pet_quick_file");
+
+    fabEl?.addEventListener("click", () => panelEl?.classList.toggle("is-open"));
+    quickRunEl?.addEventListener("click", () => {
+        cfg().enabled = !cfg().enabled;
+        refreshVisibility();
+        updateUiState();
+        saveSettingsDebounced();
+    });
+    quickAutoEl?.addEventListener("click", () => {
+        cfg().autopilot = !cfg().autopilot;
+        updateUiState();
+        saveSettingsDebounced();
+    });
+    quickResetEl?.addEventListener("click", () => {
+        cfg().x = DEFAULTS.x;
+        cfg().y = DEFAULTS.y;
+        setPetPosition(cfg().x, cfg().y);
+        saveSettingsDebounced();
+    });
+    quickSizeEl?.addEventListener("input", () => {
+        cfg().size = clamp(Number(quickSizeEl.value), PET_SIZE_MIN, PET_SIZE_MAX);
+        applyPetVisual();
+        setPetPosition(cfg().x, cfg().y);
+        updateUiState();
+        saveSettingsDebounced();
+    });
+    const quickSizeCommit = () => {
+        if (!quickSizePxEl) return;
+        const parsed = Number(quickSizePxEl.value);
+        if (Number.isNaN(parsed)) return;
+        cfg().size = clamp(Math.round(parsed), PET_SIZE_MIN, PET_SIZE_MAX);
+        applyPetVisual();
+        setPetPosition(cfg().x, cfg().y);
+        updateUiState();
+        saveSettingsDebounced();
+    };
+    quickSizePxEl?.addEventListener("change", quickSizeCommit);
+    quickSizePxEl?.addEventListener("blur", quickSizeCommit);
+    quickSpeedEl?.addEventListener("input", () => {
+        cfg().speed = Number(quickSpeedEl.value);
+        updateUiState();
+        saveSettingsDebounced();
+    });
+    quickFileEl?.addEventListener("change", async () => {
+        const file = quickFileEl.files?.[0];
+        if (!file) return;
+        const isAllowed = file.type === "image/png" || file.type === "image/gif";
+        if (!isAllowed) return;
+        const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(file);
+        });
+        cfg().imageData = dataUrl;
+        cfg().imageName = file.name;
+        applyPetVisual();
+        updateUiState();
+        saveSettingsDebounced();
+    });
+
+    floatingUiMounted = true;
+    updateUiState();
+}
+
 async function init() {
     ensureSettings();
     await waitAndMountSettingsUI();
+    setupUiAutoMount();
     createPetIfNeeded();
+    createFloatingUI();
     refreshVisibility();
 }
 
