@@ -11,10 +11,13 @@
         speed: 1.6,
         size: 120,
         imageData: "",
+        imageType: "",
         x: 120,
         y: 120,
         vx: 1,
         vy: 1,
+        gifSpeedMultiplier: 1.2,
+        shadowOpacity: 0.35,
         draggingPet: false,
         draggingFab: false,
         dragOffsetX: 0,
@@ -44,8 +47,11 @@
             speed: state.speed,
             size: state.size,
             imageData: state.imageData,
+            imageType: state.imageType,
             x: state.x,
             y: state.y,
+            gifSpeedMultiplier: state.gifSpeedMultiplier,
+            shadowOpacity: state.shadowOpacity,
         };
         localStorage.setItem(KEY, JSON.stringify(data));
     }
@@ -101,6 +107,7 @@
         state.actor.style.width = `${state.size}px`;
         state.actor.style.height = `${state.size}px`;
         state.actor.style.display = state.enabled ? "block" : "none";
+        state.actor.style.filter = `drop-shadow(0 8px 14px rgba(0, 0, 0, ${clamp(state.shadowOpacity, 0, 1)}))`;
         const placeholder = state.actor.querySelector("#spt_pet_actor_placeholder");
         if (state.imageData) {
             state.actorImg.src = state.imageData;
@@ -115,8 +122,10 @@
 
     function tick() {
         if (state.enabled && state.autopilot && !state.draggingPet) {
-            let nx = state.x + state.vx * state.speed;
-            let ny = state.y + state.vy * state.speed;
+            const isGif = state.imageType === "image/gif";
+            const effectiveSpeed = state.speed * (isGif ? state.gifSpeedMultiplier : 1);
+            let nx = state.x + state.vx * effectiveSpeed;
+            let ny = state.y + state.vy * effectiveSpeed;
             const maxX = Math.max(0, window.innerWidth - state.size);
             const maxY = Math.max(0, window.innerHeight - state.size);
             if (nx <= 0 || nx >= maxX) {
@@ -140,8 +149,14 @@
         const sizeRange = root.querySelector("#spt_min_pet_size");
         const sizePx = root.querySelector("#spt_min_pet_size_px");
         const speedRange = root.querySelector("#spt_min_pet_speed");
+        const gifSpeed = root.querySelector("#spt_min_pet_gif_speed");
+        const shadow = root.querySelector("#spt_min_pet_shadow");
         const fileInput = root.querySelector("#spt_min_pet_file");
         const fileName = root.querySelector("#spt_min_pet_file_name");
+        const tabBasic = root.querySelector("#spt_tab_basic");
+        const tabAdvanced = root.querySelector("#spt_tab_advanced");
+        const paneBasic = root.querySelector("#spt_pane_basic");
+        const paneAdvanced = root.querySelector("#spt_pane_advanced");
 
         const renderUi = () => {
             runBtn.textContent = state.enabled ? "Stop" : "Start";
@@ -149,7 +164,17 @@
             sizeRange.value = String(state.size);
             sizePx.value = String(state.size);
             speedRange.value = String(state.speed);
+            gifSpeed.value = String(state.gifSpeedMultiplier);
+            shadow.value = String(state.shadowOpacity);
             if (fileName) fileName.textContent = state.imageData ? "Image loaded" : "No image selected";
+        };
+
+        const setTab = (name) => {
+            const basic = name === "basic";
+            paneBasic.hidden = !basic;
+            paneAdvanced.hidden = basic;
+            tabBasic.classList.toggle("is-active", basic);
+            tabAdvanced.classList.toggle("is-active", !basic);
         };
 
         fab.addEventListener("click", () => {
@@ -198,6 +223,16 @@
             renderUi();
             save();
         });
+        gifSpeed.addEventListener("input", () => {
+            state.gifSpeedMultiplier = Number(gifSpeed.value);
+            renderUi();
+            save();
+        });
+        shadow.addEventListener("input", () => {
+            state.shadowOpacity = Number(shadow.value);
+            applyPet();
+            save();
+        });
 
         fileInput.addEventListener("change", async () => {
             const file = fileInput.files?.[0];
@@ -210,11 +245,15 @@
                 fr.readAsDataURL(file);
             });
             state.imageData = dataUrl;
+            state.imageType = file.type;
             applyPet();
             if (fileName) fileName.textContent = file.name;
             save();
         });
+        tabBasic.addEventListener("click", () => setTab("basic"));
+        tabAdvanced.addEventListener("click", () => setTab("advanced"));
 
+        setTab("basic");
         renderUi();
     }
 
@@ -226,24 +265,40 @@
             <button id="spt_min_pet_btn" type="button" title="Pokemon Pet">POKE</button>
             <div id="spt_min_pet_panel" hidden>
                 <div class="spt-title">Pokemon Pet</div>
-                <div class="spt-row">
-                    <button id="spt_min_pet_toggle" type="button">Start</button>
-                    <button id="spt_min_pet_auto" type="button">Auto: ON</button>
+                <div class="spt-tabs">
+                    <button id="spt_tab_basic" type="button" class="spt-tab is-active">Basic</button>
+                    <button id="spt_tab_advanced" type="button" class="spt-tab">Advanced</button>
                 </div>
-                <div class="spt-row">
-                    <label>Size</label>
-                    <input id="spt_min_pet_size" type="range" min="48" max="280" step="1" />
-                    <input id="spt_min_pet_size_px" type="number" min="48" max="280" step="1" />
+                <div id="spt_pane_basic">
+                    <div class="spt-row">
+                        <button id="spt_min_pet_toggle" type="button">Start</button>
+                        <button id="spt_min_pet_auto" type="button">Auto: ON</button>
+                    </div>
+                    <div class="spt-row">
+                        <label>Size</label>
+                        <input id="spt_min_pet_size" type="range" min="48" max="280" step="1" />
+                        <input id="spt_min_pet_size_px" type="number" min="48" max="280" step="1" />
+                    </div>
+                    <div class="spt-row">
+                        <input id="spt_min_pet_file" type="file" accept=".gif,.png,image/gif,image/png" />
+                        <label for="spt_min_pet_file" class="spt-upload-btn">Choose GIF/PNG</label>
+                    </div>
+                    <div id="spt_min_pet_file_name" class="spt-file-name">No image selected</div>
                 </div>
-                <div class="spt-row">
-                    <label>Speed</label>
-                    <input id="spt_min_pet_speed" type="range" min="0.4" max="5" step="0.1" />
+                <div id="spt_pane_advanced" hidden>
+                    <div class="spt-row">
+                        <label>Speed</label>
+                        <input id="spt_min_pet_speed" type="range" min="0.4" max="5" step="0.1" />
+                    </div>
+                    <div class="spt-row">
+                        <label>GIF</label>
+                        <input id="spt_min_pet_gif_speed" type="range" min="0.4" max="3" step="0.1" />
+                    </div>
+                    <div class="spt-row">
+                        <label>Shadow</label>
+                        <input id="spt_min_pet_shadow" type="range" min="0" max="1" step="0.05" />
+                    </div>
                 </div>
-                <div class="spt-row">
-                    <label for="spt_min_pet_file" class="spt-upload-btn">Choose GIF/PNG</label>
-                    <input id="spt_min_pet_file" type="file" accept=".gif,.png,image/gif,image/png" />
-                </div>
-                <div id="spt_min_pet_file_name" class="spt-file-name">No image selected</div>
             </div>
         `;
         document.body.appendChild(root);
