@@ -72,6 +72,7 @@
 
         actor.addEventListener("pointerdown", (evt) => {
             state.draggingPet = true;
+            showBubble('💦');
             const rect = actor.getBoundingClientRect();
             state.dragOffsetX = evt.clientX - rect.left;
             state.dragOffsetY = evt.clientY - rect.top;
@@ -107,7 +108,7 @@
         if (state.bubbleTimer) window.clearTimeout(state.bubbleTimer);
         state.bubbleTimer = window.setTimeout(() => {
             if (state.bubbleEl) state.bubbleEl.hidden = true;
-        }, 2200);
+        }, 4200);
     }
 
     function moodFromText(text, role) {
@@ -136,9 +137,9 @@
         if (state.idleMoodTimer) return;
         state.idleMoodTimer = window.setInterval(() => {
             if (!state.enabled) return;
-            if (Math.random() < 0.55) return;
+            if (Math.random() < 0.8) return;
             showBubble(randomIdleMood());
-        }, 9000);
+        }, 14000);
     }
 
     function inferRole(el) {
@@ -185,7 +186,7 @@
         };
         const obs = new MutationObserver(run);
         obs.observe(document.body, { childList: true, subtree: true, characterData: true });
-        window.setInterval(run, 1500);
+        window.setInterval(run, 2800);
     }
 
     function setPetPosition(x, y) {
@@ -423,3 +424,5 @@
         applyPet();
     }, 2000);
 })();
+
+
