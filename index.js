@@ -29,6 +29,10 @@
         lastChatSignature: "",
         bubbleTimer: null,
         idleMoodTimer: null,
+        affinity: 0,
+        level: 1,
+        statusTimer: null,
+        interactionLock: false,
     };
 
     function clamp(v, min, max) {
@@ -56,6 +60,8 @@
             y: state.y,
             gifSpeedMultiplier: state.gifSpeedMultiplier,
             shadowOpacity: state.shadowOpacity,
+            affinity: state.affinity,
+            level: state.level,
         };
         localStorage.setItem(KEY, JSON.stringify(data));
     }
@@ -111,6 +117,18 @@
         }, 4200);
     }
 
+    function gainAffinity(amount) {
+        state.affinity += amount;
+        const nextLevelNeed = state.level * 100;
+        if (state.affinity >= nextLevelNeed) {
+            state.affinity -= nextLevelNeed;
+            state.level += 1;
+            showBubble("🎉");
+        }
+        save();
+        renderHud();
+    }
+
     function moodFromText(text, role) {
         const t = (text || "").toLowerCase();
         if (!t) return role === "user" ? "🙂" : "😶";
@@ -140,6 +158,44 @@
             if (Math.random() < 0.8) return;
             showBubble(randomIdleMood());
         }, 14000);
+    }
+
+    function setupStatusEvent() {
+        if (state.statusTimer) return;
+        state.statusTimer = window.setInterval(() => {
+            if (!state.enabled) return;
+            const hour = new Date().getHours();
+            if (hour >= 0 && hour < 6) showBubble("😪");
+            else if (hour >= 12 && hour <= 14) showBubble("🍽️");
+            else if (hour >= 18 && hour <= 20) showBubble("🌙");
+            else {
+                const moods = ["☀️", "🎵", "🧘", "⚡"];
+                showBubble(moods[Math.floor(Math.random() * moods.length)]);
+            }
+        }, 22000);
+    }
+
+    function animatePet(kind) {
+        if (!state.actor || state.interactionLock) return;
+        state.interactionLock = true;
+        if (kind === "pet") {
+            state.actor.animate(
+                [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }],
+                { duration: 260, easing: "ease-out" }
+            );
+            showBubble("😊");
+            gainAffinity(4);
+        } else if (kind === "jump") {
+            state.actor.animate(
+                [{ transform: "translateY(0)" }, { transform: "translateY(-18px)" }, { transform: "translateY(0)" }],
+                { duration: 380, easing: "ease-out" }
+            );
+            showBubble("✨");
+            gainAffinity(3);
+        }
+        window.setTimeout(() => {
+            state.interactionLock = false;
+        }, 420);
     }
 
     function inferRole(el) {
@@ -254,6 +310,9 @@
         const tabAdvanced = root.querySelector("#spt_tab_advanced");
         const paneBasic = root.querySelector("#spt_pane_basic");
         const paneAdvanced = root.querySelector("#spt_pane_advanced");
+        const feedBtn = root.querySelector("#spt_min_pet_feed");
+        const petBtn = root.querySelector("#spt_min_pet_pet");
+        const jumpBtn = root.querySelector("#spt_min_pet_jump");
 
         const renderUi = () => {
             runBtn.textContent = state.enabled ? "Stop" : "Start";
@@ -349,9 +408,23 @@
         });
         tabBasic.addEventListener("click", () => setTab("basic"));
         tabAdvanced.addEventListener("click", () => setTab("advanced"));
+        feedBtn.addEventListener("click", () => {
+            showBubble(Math.random() > 0.5 ? "🍖" : "🍓");
+            gainAffinity(8);
+        });
+        petBtn.addEventListener("click", () => animatePet("pet"));
+        jumpBtn.addEventListener("click", () => animatePet("jump"));
 
         setTab("basic");
         renderUi();
+    }
+
+    function renderHud() {
+        const lv = document.getElementById("spt_pet_level");
+        const xp = document.getElementById("spt_pet_xp");
+        if (!lv || !xp) return;
+        lv.textContent = `Lv.${state.level}`;
+        xp.textContent = `Affinity ${state.affinity}/${state.level * 100}`;
     }
 
     function mount() {
@@ -367,9 +440,18 @@
                     <button id="spt_tab_advanced" type="button" class="spt-tab">Advanced</button>
                 </div>
                 <div id="spt_pane_basic">
+                    <div class="spt-hud">
+                        <span id="spt_pet_level">Lv.1</span>
+                        <span id="spt_pet_xp">Affinity 0/100</span>
+                    </div>
                     <div class="spt-row">
                         <button id="spt_min_pet_toggle" type="button">Start</button>
                         <button id="spt_min_pet_auto" type="button">Auto: ON</button>
+                    </div>
+                    <div class="spt-row">
+                        <button id="spt_min_pet_feed" type="button">Feed</button>
+                        <button id="spt_min_pet_pet" type="button">Pet</button>
+                        <button id="spt_min_pet_jump" type="button">Jump</button>
                     </div>
                     <div class="spt-row">
                         <label>Size</label>
@@ -400,6 +482,7 @@
         `;
         document.body.appendChild(root);
         bindUi(root);
+        renderHud();
     }
 
     load();
@@ -410,6 +493,7 @@
             if (!state.rafId) tick();
             setupChatMoodObserver();
             setupIdleMood();
+            setupStatusEvent();
         });
     } else {
         mount();
@@ -417,12 +501,22 @@
         if (!state.rafId) tick();
         setupChatMoodObserver();
         setupIdleMood();
+        setupStatusEvent();
     }
 
     setInterval(() => {
         mount();
         applyPet();
+        renderHud();
     }, 2000);
+
+    document.addEventListener("dblclick", (evt) => {
+        const actor = document.getElementById(PET_ID);
+        if (!actor) return;
+        if (evt.target === actor || actor.contains(evt.target)) {
+            animatePet("jump");
+        }
+    });
 })();
 
 

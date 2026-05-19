@@ -128,6 +128,25 @@
     background: rgba(10, 10, 10, 0.38);
 }
 
+.spt-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#spt_min_pet_feed,
+#spt_min_pet_pet,
+#spt_min_pet_jump {
+    flex: 1;
+}
+
 #spt_min_pet_file {
     display: none;
 }
