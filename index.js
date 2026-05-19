@@ -34,6 +34,8 @@
         level: 1,
         statusTimer: null,
         interactionLock: false,
+        sfxEnabled: true,
+        toyActive: false,
     };
 
     function clamp(v, min, max) {
@@ -63,8 +65,41 @@
             shadowOpacity: state.shadowOpacity,
             affinity: state.affinity,
             level: state.level,
+            sfxEnabled: state.sfxEnabled,
         };
         localStorage.setItem(KEY, JSON.stringify(data));
+    }
+
+    function playSfx(type = "click") {
+        if (!state.sfxEnabled) return;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            const ac = new AC();
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain);
+            gain.connect(ac.destination);
+
+            if (type === "levelup") {
+                osc.frequency.setValueAtTime(560, ac.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(980, ac.currentTime + 0.12);
+            } else if (type === "toy") {
+                osc.frequency.setValueAtTime(820, ac.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(620, ac.currentTime + 0.1);
+            } else {
+                osc.frequency.setValueAtTime(420, ac.currentTime);
+            }
+
+            gain.gain.setValueAtTime(0.0001, ac.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.06, ac.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.16);
+
+            osc.type = "square";
+            osc.start();
+            osc.stop(ac.currentTime + 0.18);
+            osc.onended = () => ac.close();
+        } catch {}
     }
 
     function ensureActor() {
@@ -138,8 +173,9 @@
         if (state.affinity >= nextLevelNeed) {
             state.affinity -= nextLevelNeed;
             state.level += 1;
-            showBubble("✨ 진화!");
+            showBubble("LV UP!");
             playLevelUpEffect();
+            playSfx("levelup");
         }
         save();
         renderHud();
@@ -222,6 +258,7 @@
             );
             showBubble("😊");
             gainAffinity(4);
+            playSfx("click");
         } else if (kind === "jump") {
             state.actor.animate(
                 [{ transform: "translateY(0)" }, { transform: "translateY(-18px)" }, { transform: "translateY(0)" }],
@@ -229,6 +266,7 @@
             );
             showBubble("✨");
             gainAffinity(3);
+            playSfx("click");
         }
         window.setTimeout(() => {
             state.interactionLock = false;
@@ -292,6 +330,47 @@
         state.actor.style.top = `${state.y}px`;
     }
 
+    function throwToy() {
+        if (!state.actor || state.toyActive) return;
+        state.toyActive = true;
+        const toy = document.createElement("div");
+        toy.className = "spt-toy";
+        const toyEmoji = ["🎾", "⭐", "🫧"][Math.floor(Math.random() * 3)];
+        toy.textContent = toyEmoji;
+        document.body.appendChild(toy);
+
+        const startX = window.innerWidth - 110;
+        const startY = window.innerHeight - 110;
+        const targetX = clamp(80 + Math.random() * (window.innerWidth - 160), 0, window.innerWidth - 40);
+        const targetY = clamp(80 + Math.random() * (window.innerHeight - 220), 0, window.innerHeight - 40);
+
+        toy.style.left = `${startX}px`;
+        toy.style.top = `${startY}px`;
+        toy.style.opacity = "1";
+        toy.style.transform = "translate(0,0) scale(0.8)";
+        requestAnimationFrame(() => {
+            toy.style.transform = `translate(${targetX - startX}px, ${targetY - startY}px) scale(1)`;
+        });
+
+        playSfx("toy");
+        showBubble("👀");
+
+        window.setTimeout(() => {
+            // Pet chases the toy once.
+            const nx = clamp(targetX - state.size / 2, 0, window.innerWidth - state.size);
+            const ny = clamp(targetY - state.size / 2, 0, window.innerHeight - state.size);
+            setPetPosition(nx, ny);
+            showBubble("🎉");
+            gainAffinity(5);
+            toy.style.opacity = "0";
+            toy.style.transform = `translate(${targetX - startX}px, ${targetY - startY}px) scale(0.3)`;
+            window.setTimeout(() => {
+                toy.remove();
+                state.toyActive = false;
+            }, 280);
+        }, 700);
+    }
+
     function applyPet() {
         ensureActor();
         state.actor.style.width = `${state.size}px`;
@@ -350,6 +429,8 @@
         const feedBtn = root.querySelector("#spt_min_pet_feed");
         const petBtn = root.querySelector("#spt_min_pet_pet");
         const jumpBtn = root.querySelector("#spt_min_pet_jump");
+        const toyBtn = root.querySelector("#spt_min_pet_toy");
+        const sfxBtn = root.querySelector("#spt_min_pet_sfx");
 
         const renderUi = () => {
             runBtn.textContent = state.enabled ? "Stop" : "Start";
@@ -359,6 +440,7 @@
             speedRange.value = String(state.speed);
             gifSpeed.value = String(state.gifSpeedMultiplier);
             shadow.value = String(state.shadowOpacity);
+            sfxBtn.textContent = `SFX: ${state.sfxEnabled ? "ON" : "OFF"}`;
             if (fileName) fileName.textContent = state.imageData ? "Image loaded" : "No image selected";
         };
 
@@ -448,9 +530,17 @@
         feedBtn.addEventListener("click", () => {
             showBubble(Math.random() > 0.5 ? "🍖" : "🍓");
             gainAffinity(8);
+            playSfx("click");
         });
         petBtn.addEventListener("click", () => animatePet("pet"));
         jumpBtn.addEventListener("click", () => animatePet("jump"));
+        toyBtn.addEventListener("click", () => throwToy());
+        sfxBtn.addEventListener("click", () => {
+            state.sfxEnabled = !state.sfxEnabled;
+            renderUi();
+            save();
+            playSfx("click");
+        });
 
         setTab("basic");
         renderUi();
@@ -487,6 +577,7 @@
                     </div>
                     <div class="spt-row">
                         <button id="spt_min_pet_feed" type="button">Feed</button>
+                        <button id="spt_min_pet_toy" type="button">Toy</button>
                         <button id="spt_min_pet_pet" type="button">Pet</button>
                         <button id="spt_min_pet_jump" type="button">Jump</button>
                     </div>
@@ -513,6 +604,10 @@
                     <div class="spt-row">
                         <label>Shadow</label>
                         <input id="spt_min_pet_shadow" type="range" min="0" max="1" step="0.05" />
+                    </div>
+                    <div class="spt-row">
+                        <label>SFX</label>
+                        <button id="spt_min_pet_sfx" type="button">SFX: ON</button>
                     </div>
                 </div>
             </div>

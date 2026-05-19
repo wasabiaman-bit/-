@@ -142,9 +142,20 @@
 }
 
 #spt_min_pet_feed,
+#spt_min_pet_toy,
 #spt_min_pet_pet,
 #spt_min_pet_jump {
     flex: 1;
+}
+
+.spt-toy {
+    position: fixed;
+    z-index: 100001;
+    font-size: 24px;
+    pointer-events: none;
+    transition: transform 0.7s ease, opacity 0.25s ease;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.25));
 }
 
 #spt_min_pet_file {
@@ -224,6 +235,7 @@
     top: -40px;
     transform: translateX(-50%);
     min-width: 34px;
+    max-width: 84px;
     height: 30px;
     padding: 0 8px;
     border-radius: 6px;
@@ -234,6 +246,8 @@
     display: grid;
     place-items: center;
     font-size: 16px;
+    line-height: 1;
+    white-space: nowrap;
     image-rendering: pixelated;
     box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
 }
