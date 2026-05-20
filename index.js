@@ -382,9 +382,12 @@
             state.actorImg.src = state.imageData;
             state.actorImg.style.display = "block";
             placeholder.style.display = "none";
+            const staticImage = state.imageType === "image/png" || state.imageType === "image/jpeg" || state.imageType === "image/jpg";
+            state.actor.classList.toggle("spt-static-wiggle", staticImage);
         } else {
             state.actorImg.style.display = "none";
             placeholder.style.display = "grid";
+            state.actor.classList.remove("spt-static-wiggle");
         }
         setPetPosition(state.x, state.y);
     }
@@ -512,7 +515,7 @@
         fileInput.addEventListener("change", async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
-            if (!(file.type === "image/png" || file.type === "image/gif")) return;
+            if (!(file.type === "image/png" || file.type === "image/gif" || file.type === "image/jpeg" || file.type === "image/jpg")) return;
             const dataUrl = await new Promise((resolve, reject) => {
                 const fr = new FileReader();
                 fr.onload = () => resolve(fr.result);
@@ -587,8 +590,8 @@
                         <input id="spt_min_pet_size_px" type="number" min="48" max="280" step="1" />
                     </div>
                     <div class="spt-row">
-                        <input id="spt_min_pet_file" type="file" accept=".gif,.png,image/gif,image/png" />
-                        <label for="spt_min_pet_file" class="spt-upload-btn">Choose GIF/PNG</label>
+                        <input id="spt_min_pet_file" type="file" accept=".gif,.png,.jpg,.jpeg,image/gif,image/png,image/jpeg" />
+                        <label for="spt_min_pet_file" class="spt-upload-btn">Choose GIF/PNG/JPG</label>
                     </div>
                     <div id="spt_min_pet_file_name" class="spt-file-name">No image selected</div>
                 </div>

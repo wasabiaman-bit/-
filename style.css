@@ -218,6 +218,11 @@
     pointer-events: none;
 }
 
+#spt_pet_actor.spt-static-wiggle img {
+    animation: sptStaticWiggle 0.9s ease-in-out infinite;
+    transform-origin: 50% 80%;
+}
+
 #spt_pet_actor_placeholder {
     width: 100%;
     height: 100%;
@@ -320,6 +325,14 @@
         opacity: 0;
         transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2);
     }
+}
+
+@keyframes sptStaticWiggle {
+    0% { transform: rotate(0deg) translateX(0); }
+    25% { transform: rotate(-4deg) translateX(-2px); }
+    50% { transform: rotate(0deg) translateX(0); }
+    75% { transform: rotate(4deg) translateX(2px); }
+    100% { transform: rotate(0deg) translateX(0); }
 }
 
 #spt_pane_basic .spt-row:nth-of-type(2) {
